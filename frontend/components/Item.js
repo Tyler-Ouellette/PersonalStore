@@ -16,7 +16,7 @@ export class Item extends Component {
         return (
             <ItemStyles>
             {item.image && <img src={item.image} alt={item.title} />}
-                <Title>\
+                <Title>
                     <Link href={{
                         pathname: '/item',
                         query: { id: item.id}
