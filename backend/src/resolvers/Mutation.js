@@ -27,7 +27,18 @@ const Mutations = {
         id: args.id
       }
     }, info)
+  },
+  async deleteItem(parent, args, ctx, info) {
+    const where = { id: args.id}
+    // find the item
+    const item = await ctx.db.query.item({ where }, `{ id title }`)
+    // check if they own that item or if they have perms
+    // TODO
+    // delete the item
+    return ctx.db.mutation.deleteItem({where}, info)
   }
+  
+  
   
   // createDog(parent, args, ctx, info) {
   //   global.dogs = global.dogs || [];
