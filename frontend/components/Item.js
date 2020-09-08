@@ -9,7 +9,7 @@ import formatMoney from '../lib/formatMoney'
 
 export class Item extends Component {
     static propTypes = {
-        items: PropTypes.object.isRequired,
+        item: PropTypes.object.isRequired,
     }
 
     render() {
