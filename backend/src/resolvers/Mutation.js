@@ -1,5 +1,10 @@
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
+const { randomBytes } = require('crypto')
+const { promisify } = require('util')
+const { transport, makeANiceEmail } = require('../mail')
+
+const MAX_AGE = 1000 * 60 * 60 * 24 * 365
 
 const Mutations = {
   async createItem(parent, args, ctx, info) {
@@ -13,9 +18,6 @@ const Mutations = {
       },
       info
     );
-
-    console.log(item);
-
     return item;
   },
   updateItem(parent, args, ctx, info) {
@@ -41,7 +43,6 @@ const Mutations = {
     return ctx.db.mutation.deleteItem({where}, info)
   },
   async signup(parent, args, ctx, info){
-   
     const email = args.email.toLowerCase()
     // Set the salt number for hashing
     const password = await bcrypt.hash(args.password, 15);
@@ -60,7 +61,7 @@ const Mutations = {
     // Set jwt as cookie to pass jwt along
     ctx.response.cookie('token', token, {
       httpOnly: true,
-      maxAge: 1000 * 60 * 60 * 24 * 365
+      maxAge: MAX_AGE
     })
     
     return user;
@@ -83,7 +84,7 @@ const Mutations = {
     // Set jwt as cookie to pass jwt along
     ctx.response.cookie('token', token, {
       httpOnly: true,
-      maxAge: 1000 * 60 * 60 * 24 * 365
+      maxAge: MAX_AGE
     })
     
     return user;
@@ -91,17 +92,65 @@ const Mutations = {
   signout(parent, args, ctx, info){
     ctx.response.clearCookie('token')
     return { message: 'You were logged out!'}
-  }
-  
-  
-  
-  // createDog(parent, args, ctx, info) {
-  //   global.dogs = global.dogs || [];
-  //   // create a dog
-  //   const newDog = { name: args.name };
-  //   global.dogs.push(newDog);
-  //   return newDog;
-  // },
+  },
+  async requestReset(parent, args, ctx, info){
+    const user = await ctx.db.query.user({ where: { email: args.email }})
+    if (!user){
+      throw new Error(`No such user found for email ${args.email}`)
+    }
+    // Set a reset token and expiry on that user
+    const randomBytesPromiseified = promisify(randomBytes);
+    const resetToken = (await randomBytesPromiseified(20)).toString('hex');
+    const resetTokenExpiry = Date.now() + 3600000
+    const res = await ctx.db.mutation.updateUser({
+      where: { email: args.email },
+      data: { resetToken, resetTokenExpiry }
+    })
+    // email them
+    const mailRes = await transport.sendMail({
+      from: 'tylerouellette4@gmail.com',
+      to: user.email,
+      subject: 'Password Reset Token',
+      html: makeANiceEmail(`Your password reset is: \n\n
+        <button>
+          <a href="${process.env.FRONTEND_URL}/reset?resetToken=${resetToken}">Click Here to Reset</a>
+        </button>`
+      )
+    })
+    return { message: 'Done' }
+  },
+  async resetPassword(parent, args, ctx, info){
+    // Check if passwords match
+    if (args.password !== args.confirmPassword) {
+      throw new Error('Passwords Do Not Match')
+    }
+    
+    // check if there is a legit reset token
+    const [user] = await ctx.db.query.users({ 
+      where: { resetToken: args.resetToken, resetTokenExpiry_gte: Date.now() - 3600000 }
+    })
+    if (!user) {
+      throw new Error('This token is either invalid or expired')
+    }
+    
+    const password = await bcrypt.hash(args.password, 15)
+    const updatedUser = await ctx.db.mutation.updateUser({
+      where: { email: email },
+      data: {
+        password,
+        resetToken: null,
+        resetTokenExpiry: null
+      }
+    })
+    const token = jwt.sign({ userId: updateUser.id }, process.env.APP_SECRET)
+    
+    ctx.response.cookie('token', token, {
+      httpOnly: true,
+      maxAge: MAX_AGE
+    })
+    
+    return updatedUser;
+  }  
 };
 
 module.exports = Mutations;
