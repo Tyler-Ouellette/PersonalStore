@@ -50,7 +50,7 @@ export default class Reset extends Component {
                         <fieldset disabled={loading} aria-busy={loading}>
                             <h2>Reset Your Password</h2>
                             <Error error={error} />
-                            { !error && !loading && called && <p>Success! Check your email for a reset link.</p>}
+                            { !error && !loading && called && <p>Success! </p>}
                             <label htmlFor="password">
                                 Password
                                 <input type="password" name="password" placeholder="Password" value={this.state.password} onChange={this.saveToState} required/>

@@ -135,14 +135,14 @@ const Mutations = {
     
     const password = await bcrypt.hash(args.password, 15)
     const updatedUser = await ctx.db.mutation.updateUser({
-      where: { email: email },
+      where: { email: user.email },
       data: {
         password,
         resetToken: null,
         resetTokenExpiry: null
       }
     })
-    const token = jwt.sign({ userId: updateUser.id }, process.env.APP_SECRET)
+    const token = jwt.sign({ userId: updatedUser.id }, process.env.APP_SECRET)
     
     ctx.response.cookie('token', token, {
       httpOnly: true,
